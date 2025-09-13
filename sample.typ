@@ -40,9 +40,27 @@
   ]
 ]
 
-As seen in Theorem #boxref(refname: "thm:First Theorem"), this template is pretty cool.
+As seen in #nameref(refname: "thm:First Theorem") (Theorem #boxref(refname: "thm:First Theorem")), this template is pretty cool.
+
+#codebox(name: "Test Code", refname: "test-code")[
+  Here is some Python code:
+
+  ```python
+  def test_func():
+      print("Hello world!")
+  ```
+]
+
 
 === Subsection
+
+#notebox[
+  #exbox(name: "Cool Example")[
+    This is my example!
+  ]
+  #nameref(refname: "ex:Cool Example") (example #boxref(refname: "ex:Cool Example")) is pretty cool.
+]
+
 
 ==== Subsubsection
 
@@ -53,3 +71,11 @@ Test Document
 #link("https://www.google.com")[Google]
 
 = Really really long chapter title that has to use more than one line because it is so long
+
+#lorem(200)
+
+#notebox[
+  #lorem(100)
+]
+
+#lorem(200)

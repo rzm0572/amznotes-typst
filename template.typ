@@ -1,3 +1,5 @@
+#import "@preview/zebraw:0.5.5": *
+
 #let main-font = ("STIX Two Text", "Songti SC")
 #let math-font = "STIX Two Math"
 #let mono-font = "Consolas"
@@ -9,6 +11,7 @@
 #let enbox-color   = rgb("E17055")
 #let codebox-color = rgb("2D3436")
 #let notebox-color = rgb("D63031")
+#let code-highlight-color = rgb("0984E3").lighten(90%)
 
 #let dfnbox-counter = counter("dfn-counter")
 #let thmbox-counter = counter("thm-counter")
@@ -16,6 +19,8 @@
 #let enbox-counter  = counter("en-counter")
 #let codebox-counter = counter("code-counter")
 #let notebox-counter = counter("note-counter")
+
+#let ref-table = state("ref-table", ())
 
 #let amznotes-typst(
   title: "",
@@ -32,6 +37,15 @@
   set text(font: main-font, size: 12pt)
 
   show math.equation: set text(font: math-font)
+
+  show: zebraw
+
+  show: zebraw-init.with(
+    numbering-separator: true,
+    lang: false,
+    indentation: 4,
+    highlight-color: code-highlight-color
+  )
 
   // Title page
   if title-page {
@@ -94,23 +108,38 @@
         let number-block-height = 1.4em
         let is-content = counter(heading).get().at(0) == 0
 
+        let h1-title = rect(
+          fill: chapter-color,
+          stroke: none,
+          inset: (
+            left : border-width, top   : vspace,
+            right: border-width, bottom: vspace
+          ),
+          width: full-width,
+        )[
+          #align(
+            horizon,
+            text(it.body, fill: white, size: 1.4em, weight: "extrabold")
+          )
+        ]
+
+        let h1-number = rect(
+          fill: chapter-color,
+          stroke: white,
+          radius: 5pt,
+          height: number-block-height,
+          inset: (left: 0.4em, right: 0.4em)
+        )[
+          #align(
+            center + horizon,
+            text(counter(heading).display("1"), fill: white, size: 1.4em, weight: "bold")
+          )
+        ]
+
         place(
           top + left,
           dx: -border-width,
-          rect(
-            fill: chapter-color,
-            stroke: none,
-            inset: (
-              left : border-width, top   : vspace,
-              right: border-width, bottom: vspace
-            ),
-            width: full-width,
-          )[
-            #align(
-              horizon,
-              text(it.body, fill: white, size: 1.4em, weight: "extrabold")
-            )
-          ]
+          h1-title
         )
 
         if not is-content {
@@ -118,22 +147,11 @@
             top + right,
             dx: number-block-width,
             dy: -number-block-height / 2,
-            rect(
-              fill: chapter-color,
-              stroke: white,
-              radius: 5pt,
-              height: number-block-height,
-              inset: (left: 0.4em, right: 0.4em)
-            )[
-              #align(
-                center + horizon,
-                text(counter(heading).display("1"), fill: white, size: 1.4em, weight: "bold")
-              )
-            ]
+            h1-number
           )
         }
 
-        v(5em)
+        v(measure(h1-title).height + 2em)
       })
 
       dfnbox-counter.update(0)
@@ -171,6 +189,65 @@
   // Set link style
   show link: it => underline(text(fill: black, it), stroke: blue, offset: 0.18em)
 
+  // Set page header and footer
+  set page(
+    header: context {
+      let current-page = here().page()
+
+      let h1 = query(
+        heading.where(level: 1).before(here())
+      )
+
+      let h2 = query(
+        heading.where(level: 2).before(here())
+      )
+
+      let h1-text = ""
+      let h2-text = ""
+      let h1-number = ""
+      let h2-number = ""
+
+      if h1 != none and h1.len() > 0 {
+        h1-number = counter(heading).get().at(0)
+        if h1-number == 0 {
+          h1-text = h1.last().body
+        } else {
+          h1-text = [Chapter #h1-number #h1.last().body]
+        }
+      }
+
+      if h2 != none and h2.len() > 0 {
+        if counter(heading).get().len() > 1 {
+          h2-number = counter(heading).get().at(1)
+          h2-text = [#h1-number.#h2-number #h2.last().body]
+        }
+      }
+
+      let h1-all = query(
+        heading.where(level: 1)
+      )
+
+      let h1-page = ()
+
+      for h1-item in h1-all {
+        h1-page.push(h1-item.location().page())
+      }
+
+      if current-page not in h1-page {
+        set text(8pt)
+        stack(
+          dir: ttb,
+          [
+            #smallcaps(h1-text)
+            #h(1fr) #h2-text
+            #v(0.5em)
+          ],
+          line(length: 100%, stroke: black + 0.5pt)
+        )
+      }
+    }
+  )
+
   body
 }
 
@@ -178,6 +255,8 @@
   let frame-color = color.mix((color, 0.85), (black, 0.15))
   let interior-color = color.mix((color, 0.05), (white, 0.95)).transparentize(75%)
   let segmentation-color = color.mix((color, 0.5), (black, 0.5)).transparentize(75%)
+  let shadow-color = color.mix((white, 0.75), (black, 0.25)).transparentize(50%)
+  let shadow-width = 3pt
 
   counter.step()
 
@@ -185,30 +264,63 @@
     refname = name
   }
 
-  let amzbox-block = block(
-    fill: interior-color,
-    stroke: none,
-    radius: 3pt,
-    width: 100%,
-  )[
-    #rect(
-      fill: frame-color,
-      radius: (top: 3pt),
-      height: 2em,
-      inset: (left: 1em, right: 1em),
-      width: 100%,
+  layout(size => {
+    let amzbox-block = rect(
+      fill: interior-color,
       stroke: none,
-      align(horizon, text(name, fill: white, size: 1em, weight: "bold"))
-    ) #label(refname)
-    #v(-1.2em)
-    #block(
-      it,
-      width: 100%,
-      inset: (top: 0.8em, bottom: 0.8em, left: 1em, right: 1em)
-    )
-  ]
+      radius: 3pt,
+      width: size.width - shadow-width,
+      inset: 0em
+    )[
+      #stack(
+        dir: ttb,
+        [#rect(
+          fill: frame-color,
+          radius: (top: 3pt),
+          height: 2em,
+          inset: (left: 1em, right: 1em),
+          width: 100%,
+          stroke: none,
+          align(horizon, text(name, fill: white, size: 1em, weight: "bold"))
+        ) #label(refname)],
+        block(
+          it,
+          width: 100%,
+          inset: (top: 0.8em, bottom: 0.8em, left: 1em, right: 1em)
+        )
+      )
+    ]
 
-  amzbox-block
+    let amzbox-height = measure(amzbox-block).height
+    let amzbox-width = measure(amzbox-block).width
+
+    let shadow-block = rect(
+      fill: shadow-color,
+      radius: 3pt,
+      width: size.width - shadow-width,
+      height: amzbox-height,
+    )
+    let white-block = rect(
+      fill: white,
+      radius: 3pt,
+      width: size.width - shadow-width,
+      height: amzbox-height,
+    )
+
+    place(
+      top + left,
+      dx: shadow-width,
+      dy: shadow-width,
+      shadow-block
+    )
+
+    place(
+      top + left,
+      white-block
+    )
+
+    amzbox-block
+  })
 }
 
 #let dfnbox(it, name: "", refname: "") = {
@@ -225,6 +337,8 @@
   }
 
   refname = "dfn:" + refname
+
+  ref-table.update(old-list => old-list + ((refname: refname, id: chapter-number + "." + box-number, name: name),))
 
   amzbox(it, name: numbered-name, refname: refname, color: dfnbox-color, counter: dfnbox-counter)
 }
@@ -244,6 +358,8 @@
 
   refname = "thm:" + refname
 
+  ref-table.update(old-list => old-list + ((refname: refname, id: chapter-number + "." + box-number, name: name),))
+
   amzbox(it, name: numbered-name, refname: refname, color: thmbox-color, counter: thmbox-counter)
 }
 
@@ -261,6 +377,8 @@
   }
 
   refname = "ex:" + refname
+
+  ref-table.update(old-list => old-list + ((refname: refname, id: chapter-number + "." + box-number, name: name),))
 
   amzbox(it, name: numbered-name, refname: refname, color: exbox-color, counter: exbox-counter)
 }
@@ -280,13 +398,15 @@
 
   refname = "en:" + refname
 
+  ref-table.update(old-list => old-list + ((refname: refname, id: chapter-number + "." + box-number, name: name),))
+
   amzbox(it, name: numbered-name, refname: refname, color: enbox-color, counter: enbox-counter)
 }
 
 #let codebox(it, name: "", refname: "") = {
   let chapter-number = context str(counter(heading).get().at(0))
   let box-number = context str(codebox-counter.get().at(0))
-  let numbered-name = "Code " + chapter-number + "." + box-number
+  let numbered-name = "Code Snippet " + chapter-number + "." + box-number
   
   if name != "" {
     numbered-name += " ▶ " + name
@@ -298,54 +418,64 @@
 
   refname = "code:" + refname
 
+  ref-table.update(old-list => old-list + ((refname: refname, id: chapter-number + "." + box-number, name: name),))
+
   amzbox(it, name: numbered-name, refname: refname, color: codebox-color, counter: codebox-counter)
 }
 
-#let notebox(it, name: "", refname: "") = {
-  let chapter-number = context str(counter(heading).get().at(0))
-  let box-number = context str(notebox-counter.get().at(0))
-  let numbered-name = "Note " + chapter-number + "." + box-number
-  
-  if name != "" {
-    numbered-name += " ▶ " + name
-  }
-  
-  if refname == "" {
-    refname = name
-  }
+#let notebox(it, color: notebox-color) = {
+  let frame-color = color.mix((color, 0.85), (black, 0.15))
+  let interior-color = color.mix((color, 0.05), (white, 0.95)).transparentize(75%)
+  let leftbar-width = 4pt
 
-  refname = "note:" + refname
+  layout(size => {
+    let notebox-width = size.width - leftbar-width
 
-  amzbox(it, name: numbered-name, refname: refname, color: notebox-color, counter: notebox-counter)
+    let notebox-block = rect(
+      width: notebox-width,
+      fill: interior-color,
+      inset: (top: 0.8em, bottom: 0.8em, left: 1em, right: 1em),
+      it
+    )
+
+    let final-height = measure(notebox-block).height
+
+    block(
+      stack(
+        dir: ltr,
+        rect(
+          fill: frame-color,
+          width: leftbar-width,
+          height: final-height
+        ),
+        notebox-block
+      )
+    )
+  })
 }
 
-
-
 #let boxref(refname: str) = {
-  let reftype = refname.split(":").at(0)
   let reflabel = label(refname)
-  let chapter-number = context str(counter(heading).at(reflabel).at(0))
-
-  let counter = none
-  if reftype == "dfn" {
-    counter = dfnbox-counter
-  } else if reftype == "thm" {
-    counter = thmbox-counter
-  } else if reftype == "ex" {
-    counter = exbox-counter
-  } else if reftype == "en" {
-    counter = enbox-counter
-  } else if reftype == "code" {
-    counter = codebox-counter
-  } else if reftype == "note" {
-    counter = notebox-counter
-  } else {
-    return text(refname)
+  context {
+    let item = ref-table.get().find(it => it.refname == refname)
+    if item == none {
+      text("Error: reference not found.")
+    } else {
+      link(reflabel, item.id)
+    }
   }
-  
-  let box-number = context str(counter.at(reflabel).at(0))
+}
 
-  link(reflabel, chapter-number + "." + box-number)
+#let nameref(refname: str) = {
+  let reflabel = label(refname)
+  context {
+    let item = ref-table.get().find(it => it.refname == refname)
+    if item == none {
+      text("Error: reference not found.")
+    } else {
+      link(item.name)
+    }
+  }
 }
 
 #let dfntxt(it) = text(it, weight: "bold", style: "italic")
@@ -372,4 +502,19 @@
       )
     )
   ]
+}
+
+#let show-list() = {
+  // Get reference table and display it
+  context {
+    let current-list = ref-table.get()
+    if current-list.len() == 0 {
+      "列表为空。"
+    } else {
+      // Display each item in the list
+      for item in current-list {
+        [ #item ]
+      }
+    }
+  }
 }

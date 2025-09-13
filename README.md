@@ -17,8 +17,11 @@ You may need to install the fonts below, which are used in the template:
 
 ## Develop Plan
 
-- [ ] Add shadow for amzbox
-- [ ] Support code block
+- [x] Add shadow for amzbox
+- [x] Support code block
+- [x] Add page header and footer
+- [x] Add `#nameref` and `#boxref` support
+- [x] Support nested amzbox
 
 ## License
 
