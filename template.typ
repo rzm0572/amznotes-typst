@@ -96,6 +96,11 @@
       },
     )
 
+    show heading: it => block(
+      below: 1em,
+      it
+    )
+
     show heading.where(level: 1): it => {
       pagebreak()
       layout(size => {
@@ -176,7 +181,6 @@
   
   // Set contents style
   if table-of-contents {
-    // show outline: set heading(level: 1)
     outline(title: text("Table of Contents"), depth: 3, indent: 1.4em)
   }
   
@@ -188,6 +192,9 @@
 
   // Set link style
   show link: it => underline(text(fill: black, it), stroke: blue, offset: 0.18em)
+
+  // Set list style
+  set list(indent: 1em)
 
   // Set page header and footer
   set page(
@@ -265,31 +272,34 @@
   }
 
   layout(size => {
+    let header = rect(
+      fill: frame-color,
+      radius: (top: 3pt),
+      height: 2em,
+      inset: (left: 1em, right: 1em),
+      width: 100%,
+      stroke: none,
+      align(horizon, text(name, fill: white, size: 1em, weight: "bold"))
+    )
+
+    let body = block(
+      it,
+      width: 100%,
+      inset: (top: 0.8em, bottom: 0.8em, left: 1em, right: 1em)
+    )
+
     let amzbox-block = rect(
       fill: interior-color,
       stroke: none,
       radius: 3pt,
       width: size.width - shadow-width,
-      inset: 0em
-    )[
-      #stack(
+      inset: 0em,
+      stack(
         dir: ttb,
-        [#rect(
-          fill: frame-color,
-          radius: (top: 3pt),
-          height: 2em,
-          inset: (left: 1em, right: 1em),
-          width: 100%,
-          stroke: none,
-          align(horizon, text(name, fill: white, size: 1em, weight: "bold"))
-        ) #label(refname)],
-        block(
-          it,
-          width: 100%,
-          inset: (top: 0.8em, bottom: 0.8em, left: 1em, right: 1em)
-        )
+        header,
+        body
       )
-    ]
+    )
 
     let amzbox-height = measure(amzbox-block).height
     let amzbox-width = measure(amzbox-block).width
@@ -319,7 +329,7 @@
       white-block
     )
 
-    amzbox-block
+    [#amzbox-block #label(refname)]
   })
 }
 
@@ -336,7 +346,7 @@
     refname = name
   }
 
-  refname = "dfn:" + refname
+  refname = "dfn:" + lower(refname.replace(" ", "-"))
 
   ref-table.update(old-list => old-list + ((refname: refname, id: chapter-number + "." + box-number, name: name),))
 
@@ -356,7 +366,7 @@
     refname = name
   }
 
-  refname = "thm:" + refname
+  refname = "thm:" + lower(refname.replace(" ", "-"))
 
   ref-table.update(old-list => old-list + ((refname: refname, id: chapter-number + "." + box-number, name: name),))
 
@@ -376,7 +386,7 @@
     refname = name
   }
 
-  refname = "ex:" + refname
+  refname = "ex:" + lower(refname.replace(" ", "-"))
 
   ref-table.update(old-list => old-list + ((refname: refname, id: chapter-number + "." + box-number, name: name),))
 
@@ -396,7 +406,7 @@
     refname = name
   }
 
-  refname = "en:" + refname
+  refname = "en:" + lower(refname.replace(" ", "-"))
 
   ref-table.update(old-list => old-list + ((refname: refname, id: chapter-number + "." + box-number, name: name),))
 
@@ -416,7 +426,7 @@
     refname = name
   }
 
-  refname = "code:" + refname
+  refname = "code:" + lower(refname.replace(" ", "-"))
 
   ref-table.update(old-list => old-list + ((refname: refname, id: chapter-number + "." + box-number, name: name),))
 
@@ -473,7 +483,7 @@
     if item == none {
       text("Error: reference not found.")
     } else {
-      link(item.name)
+      link(reflabel, item.name)
     }
   }
 }
